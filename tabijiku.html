@@ -481,7 +481,7 @@ function goTab(i){
     document.getElementById(`tab${j}`).classList.toggle('on',i===j);
     document.getElementById(`v${j}`).classList.toggle('off',i!==j);
   });
-  if(i===0){renderTL();setTimeout(()=>{updatePL();scrollToNow();initMarquees();},80);}
+  if(i===0){renderTL();setTimeout(()=>{updatePL();scrollToNow();initMarquees();updateTLZoom();},80);}
   else{renderEdit();}
 }
 
@@ -1140,10 +1140,50 @@ function showSaveToast(){
 
 /* auto-save is inline in each mutation function */
 
+/* ─────────────── TIMELINE ZOOM ─────────────── */
+let _tlZoomRaf=null;
+function schedTLZoom(){
+  if(_tlZoomRaf)return;
+  _tlZoomRaf=requestAnimationFrame(()=>{_tlZoomRaf=null;updateTLZoom();});
+}
+function updateTLZoom(){
+  const view=document.getElementById('v0');
+  if(view.classList.contains('off'))return;
+  const vr=view.getBoundingClientRect();
+  const cy=vr.top+vr.height/2;
+  const halfH=vr.height/2;
+  const items=[...view.querySelectorAll('.ev,.tr')];
+  // read all positions first to avoid layout thrashing
+  const scales=items.map(el=>{
+    const er=el.getBoundingClientRect();
+    const dist=Math.abs((er.top+er.height/2)-cy);
+    const t=Math.max(0,1-dist/halfH);
+    return 1+0.5*t*t;
+  });
+  // write: scale name and time elements; card height grows naturally
+  items.forEach((el,i)=>{
+    const sc=scales[i];
+    if(el.classList.contains('ev')){
+      const nm=el.querySelector('.ev-name');
+      if(nm)nm.style.fontSize=(15*sc).toFixed(1)+'px';
+      const tt=el.querySelector('.ev-tl-time');
+      if(tt)tt.style.fontSize=(12*sc).toFixed(1)+'px';
+      const dur=el.querySelector('.ev-dur');
+      if(dur)dur.style.fontSize=(12*sc).toFixed(1)+'px';
+    }else{
+      const nm=el.querySelector('.tr-nm');
+      if(nm)nm.style.fontSize=(13*sc).toFixed(1)+'px';
+      const rgt=el.querySelector('.tr-rgt');
+      if(rgt)rgt.style.fontSize=(12*sc).toFixed(1)+'px';
+    }
+  });
+}
+
 /* ─────────────── INIT ─────────────── */
 if(!loadData()){localStorage.setItem(STORE_KEY,JSON.stringify(data));}
-renderTitle();renderTL();updatePL();setTimeout(()=>{scrollToNow();initMarquees();},150);
+renderTitle();renderTL();updatePL();setTimeout(()=>{scrollToNow();initMarquees();updateTLZoom();},150);
 setInterval(()=>{if(!document.getElementById('v0').classList.contains('off'))updatePL();},1000);
+document.getElementById('v0').addEventListener('scroll',schedTLZoom,{passive:true});
 </script>
 </body>
 </html>
